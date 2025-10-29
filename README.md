@@ -10,11 +10,10 @@ This project showcases how **large-scale models** can be efficiently adapted to 
 ---
 
 ## 🚀 Key Features
-- Fine-tuning of a **Vision Transformer (ViT)** using **transfer learning**
+- Fine-tuning of a **Vision Transformer (ViT)**
 - **Custom dataset** of segmented leaf images (healthy vs diseased)
 - **Data preprocessing** and **augmentation** for better generalization
 - **Performance evaluation** with confusion matrices and class-level metrics
-- **Explainable AI (XAI)** techniques to interpret model predictions
 - End-to-end **AI pipeline** from dataset loading to visualization
 
 ---
@@ -27,7 +26,7 @@ This project showcases how **large-scale models** can be efficiently adapted to 
 2. **Model Fine-Tuning**
    - Loaded a **pre-trained ViT model** from Hugging Face Transformers.
    - Replaced the classification head to fit the number of plant disease classes.
-   - Trained using **PyTorch Lightning / PyTorch** for efficient optimization.
+   - Trained using **PyTorch** for efficient optimization.
 
 3. **Evaluation**
    - Measured accuracy, precision, recall, and F1-score.
