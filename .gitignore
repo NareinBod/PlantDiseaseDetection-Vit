@@ -1,0 +1,75 @@
+# Python Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python compiled files
+__pycache__/
+*.py[cod]
+*.so
+*.pyo
+*.pyd
+.Python
+
+# Large Data (Do NOT commit to GitHub)
+plantvillage-dataset.zip
+plantvillage-dataset/
+*.zip
+
+# Image files (if you have other image folders)
+*.jpg
+*.JPG
+*.jpeg
+*.JPEG
+*.png
+*.PNG
+
+# Model files (trained models can be large)
+*.pth
+*.pt
+*.h5
+*.keras
+*.ckpt
+*.pkl
+*.pickle
+models/
+checkpoints/
+saved_models/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs and outputs
+logs/
+*.log
+tensorboard/
+runs/
+outputs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Ignore dataset
+plantvillage-dataset.zip
+plantvillage-dataset\plantvillage dataset
