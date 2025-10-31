@@ -62,13 +62,12 @@ print(classes_list)
 classes_list.sort()
 
 class_to_index = {}
+index_to_class = {}
 num = 0
 for i in classes_list:
     class_to_index[i] = num
+    index_to_class[num] = i
     num += 1
-print("\n")
-print("Class to Index Mapping.")
-print((class_to_index))
 
 json_form = json.dumps(class_to_index, indent=3)
 print(json_form)
@@ -78,3 +77,6 @@ with open("class_to_idx.json", "w") as r:
 
 with open("class_weights.json", 'w') as w:
     w.write(json.dumps(weights_list, indent=3))
+
+with open("idx_to_class.json", 'w') as i:
+    i.write(json.dumps(index_to_class, indent=3))

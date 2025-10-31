@@ -1,61 +1,97 @@
-from dataclasses import dataclass
 import os
-import numpy as np
-import pandas as pd
-from glob import glob
-from PIL import Image
-from sklearn.model_selection import train_test_split
-import torch
-from torchvision.transforms import Compose, Normalize, ToTensor
+from pathlib import Path
+import json
+import torch 
+import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
+from sklearn.model_selection import train_test_split
+from PIL import Image
 
+import matplotlib.pyplot as plt
+import numpy as np
 
-@dataclass
-class VitConfig:
-    num_channels: int =  38
-    image_size: int =  224
-    patch_size: int =  16
+'''
+LOADING DATA FROM JSON FILES
+'''
+try:
+    with open("class_to_idx.json",'r') as c:
+        class_to_idx = json.load(c)
+except  Exception as e:
+    print(e)
 
-    embd_dim: int =  None
+try:
+    with open("idx_to_class.json",'r') as i:
+        idx_to_class = json.load(i)
+except  Exception as e:
+    print(e)
 
-    num_patches: int =  None
+try:
+    with open('class_weights.json','r') as cw:
+        class_weights = json.load(cw)
+except  Exception as e:
+    print(e)
 
-    num_classes: int = 38
+'''
+BUILD IMAGE PATHS AND LABELS
+'''
+path = ("plantvillage-dataset\\plantvillage dataset\\color")
 
-    batch_size: int = 16
-
-    epochs: int = 30
-
-    learning_rate: float = 1e-5 
-
-    adam_weight_decay: int = 0
-
-    adam_betas: tuple = (0.9, 0.999)
-
-    random_seed: int = 42
-
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
-
-#Different types of images we have.
-MODALITIES = ["color","grayscale","segmented"]
-
-transform = Compose([
-    ToTensor(),
-    #Normalize the distribution: transforming the data to a more consistent range of distribution.
-    Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
-])
-#location of the images
-DATA_DIR = '\plantvillage-dataset\plantvillage dataset\color'
-
-class MultiModalityDataset(Dataset):
-    def __init__(self, samples, modality_transforms):
-        '''
-        samples: list of (img_path, label_id, modality=color)
-        modality_transforms: dict {modality_name: transform}
-        '''
-        
-        self.samples = samples
-        self.transforms = modality_transforms
+if os.path.exists(path=path):
+    print("Valid Path")
+else:
+    print("Invalid Path")
     
-    def __len__(self):
-        return len(self.samples)
+#This list will store full paths to every image
+all_image_paths = []
+#In the same order as teh above list it will store those image's label
+all_labels = []
+
+class_folders = os.listdir(path)
+class_folders.sort()
+
+print(f"\nFound {len(class_folders)} class folders")
+print(f"First 3 folders: {class_folders[:3]}")
+
+total_jpg_images = 0
+#class folder path to store paths of folder in a sorted way
+for class_folder in class_folders:
+    class_idx = class_to_idx[class_folder]
+
+    class_folder_path = os.path.join(path, class_folder)
+
+    if os.path.isdir(class_folder_path):
+        image_files = os.listdir(class_folder_path)
+    else:
+        print("Not a Directory.")
+        continue
+
+    print(f"Processing: {class_folder} (idx={class_idx}, {len(image_files)} files)")
+
+    for image_file in image_files:
+
+        if not image_file.endswith(('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG')):
+            continue
+
+        total_jpg_images += 1
+
+        image_path = os.path.join(class_folder_path, image_file)
+
+        all_image_paths.append(image_path)
+        all_labels.append(class_idx)
+
+print("Total Image paths: ",len(all_image_paths))
+print("Total Image labels: ",len(all_labels))
+print("Total JPG images: ", total_jpg_images)
+
+#Splitting the Data
+
+'''
+Training: 80%
+Validation: 10%
+Testing: 10%
+
+We'll be using stratified splitting because it uses same proportions of data from all the classes
+while random split does'nt do this.
+
+'''
