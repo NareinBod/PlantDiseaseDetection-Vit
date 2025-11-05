@@ -9,7 +9,8 @@ from torchvision.transforms import ToTensor, Normalize, Resize, RandomHorizontal
 from sklearn.model_selection import train_test_split
 from PIL import Image
 from matplotlib import pyplot as plt
-
+import transformers
+from transformers import ViTImageProcessor, ViTModel, ViTForImageClassification
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -71,7 +72,7 @@ for class_folder in class_folders:
         print("Not a Directory.")
         continue
 
-    print(f"Processing: {class_folder} (idx={class_idx}, {len(image_files)} files)")
+    # print(f"Processing: {class_folder} (idx={class_idx}, {len(image_files)} files)")
 
     for image_file in image_files:
 
@@ -124,7 +125,7 @@ train_transforms = transforms.Compose([
     ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
     ToTensor(),
     #These are ImageNet stats-the values ViT was pre-trained on
-    Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 ])
 
 #For evaluation we dont want the three(Random rotation, random horizontal flip, and color jitter)
@@ -134,7 +135,7 @@ eval_transforms = transforms.Compose([
     Resize((224,224)),
     ToTensor(),
     #These are ImageNet stats-the values ViT was pre-trained on
-    Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 ])
 
 '''
@@ -181,21 +182,69 @@ test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 iterator = iter(train_dataloader)
 images, labels = next(iterator)
 
-#Print the shape
-print(images.shape, labels.shape)
+# #Print the shape
+# print(images.shape, labels.shape)
 #we get the shape as ([32, 3, 224, 224]), ([32])
 
 #Visualizing data
 unique_labels, counts = np.unique(all_labels, return_counts=True)
 
 
-plt.figure(figsize=(16, 10))  # Width = 16 inches, Height = 10 inches
-plt.barh(class_folders, counts, color="teal")
-plt.title("No of Images (Counts)")
-plt.xlabel("Plant Disease Class")
-plt.ylabel("No of Images")
-plt.gca().invert_yaxis()
-plt.tick_params(axis='y', labelsize=8)
-plt.tight_layout()
-plt.savefig("class_vs_images.png")
-plt.show()
+# plt.figure(figsize=(16, 10))  # Width = 16 inches, Height = 10 inches
+# plt.barh(class_folders, counts, color="teal")
+# plt.title("No of Images (Counts)")
+# plt.xlabel("Plant Disease Class")
+# plt.ylabel("No of Images")
+# plt.gca().invert_yaxis()
+# plt.tick_params(axis='y', labelsize=8)
+# plt.tight_layout()
+# plt.savefig("class_vs_images.png")
+# plt.show()
+
+#Model setup
+num_classes = len(class_folders)
+
+iterator = iter(train_dataloader)
+images, labels = next(iterator)
+
+#Image processor handles al image preprocessing steps required before feeding an image into the transformer
+processor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224-in21k')
+model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224-in21k', num_labels = num_classes)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model.to(device)
+# print(model)
+
+print("\nTesting forward pass...")
+images = images.to(device)
+with torch.no_grad():
+    outputs = model(images)
+
+#Test if our input shape and output shape is correct?
+print(f"Input batch shape: {images.shape}")
+print(f"Output logits shape: {outputs.logits.shape}")
+
+'''Xavier Initialization
+
+Xavier Initialization is a method for making sure the very 
+first weights that the network starts with promote stable propagation. 
+Meaning their first guess is not very off by a crazy amount.
+
+We only add this in the final layer(classifier) layer because we are already
+using a pre trained vit who's weights are perfect so we don't touch them
+so adding them to last layer which is the layer that converts ViT's features into
+38 disease predictions
+
+'''
+
+#Initialize the newly added classifier head with Xavier
+def init_weights(m):
+    #to check if current part m is a linear layer
+    if isinstance (m, nn.Linear):
+        #appling xavier initialization
+        nn.init.xavier_uniform_(m.weight)
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0)
+
+#Apply initialization only to all parts of final classification layer
+model.classifier.apply(init_weights)
