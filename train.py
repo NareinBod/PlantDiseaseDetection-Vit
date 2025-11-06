@@ -207,15 +207,14 @@ num_classes = len(class_folders)
 iterator = iter(train_dataloader)
 images, labels = next(iterator)
 
-#Image processor handles al image preprocessing steps required before feeding an image into the transformer
-processor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224-in21k')
+#Transformer already handles pre-processing
 model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224-in21k', num_labels = num_classes)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)
 # print(model)
 
-print("\nTesting forward pass...")
+#Testing to see if the model gives the correct output shape
 images = images.to(device)
 with torch.no_grad():
     outputs = model(images)
@@ -224,27 +223,20 @@ with torch.no_grad():
 print(f"Input batch shape: {images.shape}")
 print(f"Output logits shape: {outputs.logits.shape}")
 
-'''Xavier Initialization
+#we have to pass class weights to loss function as a tensor
+class_weights_tensor = torch.tensor(class_weights, dtype=torch.float32).to(device)
 
-Xavier Initialization is a method for making sure the very 
-first weights that the network starts with promote stable propagation. 
-Meaning their first guess is not very off by a crazy amount.
+#loss function(criterion) and loss is the value during training
+criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
 
-We only add this in the final layer(classifier) layer because we are already
-using a pre trained vit who's weights are perfect so we don't touch them
-so adding them to last layer which is the layer that converts ViT's features into
-38 disease predictions
+#optimizer: updates models paramters after each batch
+optim = torch.optim.AdamW(model.parameters(),lr=3e-5, weight_decay=0.01)
 
-'''
+num_epochs = 16
+best_val_accuracy = 0.0
+#where to store the best version of the model (Model with highest accuracy in a specific epoch)
+best_model_path = "best_vit_plant_disease.pth"
 
-#Initialize the newly added classifier head with Xavier
-def init_weights(m):
-    #to check if current part m is a linear layer
-    if isinstance (m, nn.Linear):
-        #appling xavier initialization
-        nn.init.xavier_uniform_(m.weight)
-        if m.bias is not None:
-            nn.init.constant_(m.bias, 0)
-
-#Apply initialization only to all parts of final classification layer
-model.classifier.apply(init_weights)
+#The learning rate is updated recursively
+lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optim, T_max=num_epochs, eta_min=1e-6 )
+   
