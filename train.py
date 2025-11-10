@@ -201,42 +201,155 @@ unique_labels, counts = np.unique(all_labels, return_counts=True)
 # plt.savefig("class_vs_images.png")
 # plt.show()
 
-#Model setup
-num_classes = len(class_folders)
+if __name__ == "__main__":
 
-iterator = iter(train_dataloader)
-images, labels = next(iterator)
+    import multiprocessing
+    multiprocessing.freeze_support()
+    #Model setup
+    num_classes = len(class_folders)
 
-#Transformer already handles pre-processing
-model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224-in21k', num_labels = num_classes)
+    iterator = iter(train_dataloader)
+    images, labels = next(iterator)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model.to(device)
-# print(model)
+    #Transformer already handles pre-processing
+    model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224-in21k', num_labels = num_classes)
 
-#Testing to see if the model gives the correct output shape
-images = images.to(device)
-with torch.no_grad():
-    outputs = model(images)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+    # print(model)
 
-#Test if our input shape and output shape is correct?
-print(f"Input batch shape: {images.shape}")
-print(f"Output logits shape: {outputs.logits.shape}")
+    #Testing to see if the model gives the correct output shape
+    images = images.to(device)
+    with torch.no_grad():
+        outputs = model(images)
 
-#we have to pass class weights to loss function as a tensor
-class_weights_tensor = torch.tensor(class_weights, dtype=torch.float32).to(device)
+    #Test if our input shape and output shape is correct?
+    # print(f"Input batch shape: {images.shape}")
+    # print(f"Output logits shape: {outputs.logits.shape}")
 
-#loss function(criterion) and loss is the value during training
-criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
+    #we have to pass class weights to loss function as a tensor
+    class_weights_tensor = torch.tensor(class_weights, dtype=torch.float32).to(device)
 
-#optimizer: updates models paramters after each batch
-optim = torch.optim.AdamW(model.parameters(),lr=3e-5, weight_decay=0.01)
+    #loss function(criterion) and loss is the value during training
+    criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
 
-num_epochs = 16
-best_val_accuracy = 0.0
-#where to store the best version of the model (Model with highest accuracy in a specific epoch)
-best_model_path = "best_vit_plant_disease.pth"
+    #optimizer: updates models paramters after each batch
+    optim = torch.optim.AdamW(model.parameters(),lr=3e-5, weight_decay=0.01)
 
-#The learning rate is updated recursively
-lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optim, T_max=num_epochs, eta_min=1e-6 )
-   
+    num_epochs = 10
+    best_val_accuracy = 0.0
+    #where to store the best version of the model (Model with highest accuracy in a specific epoch)
+    best_model_path = "best_vit_plant_disease.pth"
+
+    #The learning rate is updated recursively
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optim, T_max=num_epochs, eta_min=1e-6 )
+
+    #Train
+    def train(dataloader, model, loss_fn, optimizer):
+        size = len(dataloader.dataset)
+        model.train()
+        train_loss = 0
+        train_correct = 0
+        train_total = 0
+
+        for batch, (images, labels) in enumerate(dataloader):
+            #move to device
+            images, labels = images.to(device), labels.to(device)
+
+            prediction = model(images)
+            loss = loss_fn(prediction.logits, labels)
+            #make gradients zero before backtracking
+            optimizer.zero_grad()
+            loss.backward()
+
+            optimizer.step()
+
+            # train_loss += loss.item()
+            # train_total += len(images)
+            predicted_classes = torch.argmax(prediction.logits, dim=1)
+            train_correct += (predicted_classes == labels).sum().item()
+            train_total += images.size(0)
+            train_loss += loss.item()
+
+
+            # #check progress
+            # if batch % 100 == 0:
+            #     loss, current = loss.item(), (batch + 1)*len(images)
+            #     print(f"Loss: {loss:>7f} [{current:>5d}/{size:>5d}]")
+
+            if batch % 100 == 0:
+                loss, current = loss.item(), (batch + 1) * len(images)
+                size = len(dataloader.dataset) # Define size if not already in scope
+                print(f"Train Loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+
+        
+        avg_loss  = train_loss/ len(dataloader)
+        accuracy = (train_correct / train_total) * 100
+
+        return avg_loss, accuracy
+
+    print(f"Current Training Device: {device.upper()}")     
+
+    #val: practice data
+    def validate(dataloader, model, loss_fn):
+        val_loss = 0
+        val_correct = 0
+        val_total = 0
+        
+        model.eval()
+
+        with torch.no_grad():
+            for batch, (images, labels) in enumerate(dataloader):
+                #move to device
+                images, labels = images.to(device), labels.to(device)
+
+                prediction = model(images)
+
+                loss = loss_fn(prediction.logits, labels)
+                predicted_classes = torch.argmax(prediction.logits, dim=1)
+                val_correct += (predicted_classes == labels).sum().item()
+                val_total += images.size(0)
+                val_loss += loss.item()
+
+            
+            avg_loss = val_loss / len(dataloader)
+            accuracy = (val_correct/ val_total)*100
+
+        return avg_loss, accuracy
+
+    def test(dataloader, model, loss_fn):
+        test_loss = 0
+        test_correct = 0
+        test_total = 0
+        model.eval()
+
+        with torch.no_grad():
+            for batch, (images, labels) in enumerate(dataloader):
+                images, labels = images.to(device), labels.to(device)
+
+                prediction = model(images)
+
+                loss = loss_fn(prediction.logits, labels)
+
+                predicted_classes = torch.argmax(prediction.logits, dim=1)
+                test_correct += (predicted_classes == labels).sum().item()
+                test_total += images.size(0)
+                test_loss += loss.item()
+
+            avg_loss = test_loss/ (len(dataloader))
+            accuracy = (test_correct/test_total) * 100
+
+        return avg_loss, accuracy
+
+    #Main training loop
+    for epoch in range(num_epochs):
+        print(f"Epoch: {epoch + 1}/{num_epochs}: Starting Training...")
+        train_avg_loss, train_accuracy = train(train_dataloader, model=model, optimizer=optim, loss_fn=criterion)
+        val_avg_loss, val_accuracy = validate(val_dataloader, model=model, loss_fn=criterion)
+        #Apply scheduler: Used to update the learning rate.
+        lr_scheduler.step()
+        
+        print(f"\n--- Epoch {epoch+1} Summary ---")
+        print(f"   Train Loss: {train_avg_loss:>4f} | Train Acc: {train_accuracy:>.4f}")
+        print(f"   Val Loss: {val_accuracy:>4f} | Val Acc: {val_accuracy:>.4f}")
+        print("-" * 35)
