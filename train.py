@@ -14,135 +14,7 @@ from transformers import ViTImageProcessor, ViTModel, ViTForImageClassification
 import matplotlib.pyplot as plt
 import numpy as np
 
-'''
-LOADING DATA FROM JSON FILES
-'''
-try:
-    with open("class_to_idx.json",'r') as c:
-        class_to_idx = json.load(c)
-except  Exception as e:
-    print(e)
-
-try:
-    with open("idx_to_class.json",'r') as i:
-        idx_to_class = json.load(i)
-except  Exception as e:
-    print(e)
-
-try:
-    with open('class_weights.json','r') as cw:
-        class_weights = json.load(cw)
-except  Exception as e:
-    print(e)
-
-'''
-BUILD IMAGE PATHS AND LABELS
-'''
-path = ("plantvillage-dataset\\plantvillage dataset\\color")
-
-if os.path.exists(path):
-    print("Valid Path")
-else:
-    print("Invalid Path")
-    
-#This list will store full paths to every image
-all_image_paths = []
-#In the same order as teh above list it will store those image's label
-all_labels = []
-
-class_folders = os.listdir(path)
-class_folders.sort()
-
-# print(f"\nFound {len(class_folders)} class folders")
-# print(f"First 3 folders: {class_folders[:3]}")
-
-total_jpg_images = 0
-#class folder path to store paths of folder in a sorted way
-for class_folder in class_folders:
-    if class_folder not in class_to_idx:
-        print(f"Warning: {class_folder} not in class_to_idx.json")
-        continue
-    class_idx = class_to_idx[class_folder]
-
-    class_folder_path = os.path.join(path, class_folder)
-
-    if os.path.isdir(class_folder_path):
-        image_files = os.listdir(class_folder_path)
-    else:
-        print("Not a Directory.")
-        continue
-
-    # print(f"Processing: {class_folder} (idx={class_idx}, {len(image_files)} files)")
-
-    for image_file in image_files:
-
-        if not image_file.endswith(('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG')):
-            continue
-
-        total_jpg_images += 1
-
-        image_path = os.path.join(class_folder_path, image_file)
-
-        all_image_paths.append(image_path)
-        all_labels.append(class_idx)
-
-# print("Total Image paths: ",len(all_image_paths))
-# print("Total Image labels: ",len(all_labels))
-# print("Total JPG images: ", total_jpg_images)
-
-#Splitting the Data
-
-'''
-Training: 80%
-Validation: 10%
-Testing: 10%
-
-We'll be using stratified splitting because it uses same proportions of data from all the classes
-while random split does'nt do this.
-
-stratify parameter tells the function to lookl at all lables and keep the same proportions
-'''
-train_paths, temp_paths, train_labels, temp_labels = train_test_split(all_image_paths, all_labels, test_size=0.2, random_state=42, stratify=all_labels)
-
-#Now split the temp_paths and temp_labels into val and test datasets
-val_paths, test_paths, val_labels, test_labels = train_test_split(temp_paths, temp_labels,stratify=temp_labels, test_size=0.5,random_state=42)
-
-# print("Train paths:", len(train_paths))
-# print("Temp paths:", len(temp_paths))
-# print("Train labels:", len(train_labels))
-# print("Temp labels:", len(temp_labels))
-# print("\nAfter second split:")
-# print("Val paths:", len(val_paths))
-# print("Test paths:", len(test_paths))
-# print("Val labels:", len(val_labels))
-# print("Test labels:", len(test_labels))
-# print(len(train_paths) + len(val_paths) + len(test_paths))
-
-train_transforms = transforms.Compose([
-    Resize((224,224)),
-    RandomRotation(15),
-    RandomHorizontalFlip(p=0.5),
-    ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-    ToTensor(),
-    #These are ImageNet stats-the values ViT was pre-trained on
-    Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-])
-
-#For evaluation we dont want the three(Random rotation, random horizontal flip, and color jitter)
-# because we onlyneed variety and randomness for training, not for eval and testing.
-#Also we wil use same transform for test as well
-eval_transforms = transforms.Compose([
-    Resize((224,224)),
-    ToTensor(),
-    #These are ImageNet stats-the values ViT was pre-trained on
-    Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-])
-
-'''
-Right now we have list of image paths, lables, and transform pipelines ready.
-
-Now we have to load images from those paths, apply transform, pair them with labels, and feed them to dataloaders.
-'''
+#Plant Dataset
 class PlantDiseaseDataset(Dataset):
     def __init__(self, all_image_paths, all_labels, transform= None):
         self.image_paths = all_image_paths
@@ -164,47 +36,148 @@ class PlantDiseaseDataset(Dataset):
 
         #return them as a tuple.
         return image, img_label
-    
-#Store the data into the variables
-train_data = PlantDiseaseDataset(train_paths, train_labels, train_transforms)
-val_data = PlantDiseaseDataset(val_paths, val_labels, eval_transforms)
-test_data = PlantDiseaseDataset(test_paths, test_labels, eval_transforms)
 
 
-#set batch size
-batch_size = 32
+'''
+LOADING DATA FROM JSON FILES
+'''
+try:
+    with open("class_to_idx.json",'r') as c:
+        class_to_idx = json.load(c)
+except  Exception as e:
+    print(e)
 
-#create Dataloaders to load the data 32 at a time
-train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-val_dataloader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
-test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+try:
+    with open("idx_to_class.json",'r') as i:
+        idx_to_class = json.load(i)
+except  Exception as e:
+    print(e)
 
-iterator = iter(train_dataloader)
-images, labels = next(iterator)
+try:
+    with open('class_weights.json','r') as cw:
+        class_weights = json.load(cw)
+except  Exception as e:
+    print(e)
 
-# #Print the shape
-# print(images.shape, labels.shape)
-#we get the shape as ([32, 3, 224, 224]), ([32])
-
-#Visualizing data
-unique_labels, counts = np.unique(all_labels, return_counts=True)
-
-
-# plt.figure(figsize=(16, 10))  # Width = 16 inches, Height = 10 inches
-# plt.barh(class_folders, counts, color="teal")
-# plt.title("No of Images (Counts)")
-# plt.xlabel("Plant Disease Class")
-# plt.ylabel("No of Images")
-# plt.gca().invert_yaxis()
-# plt.tick_params(axis='y', labelsize=8)
-# plt.tight_layout()
-# plt.savefig("class_vs_images.png")
-# plt.show()
 
 if __name__ == "__main__":
-
     import multiprocessing
     multiprocessing.freeze_support()
+    '''
+    BUILD IMAGE PATHS AND LABELS
+    '''
+    path = ("plantvillage-dataset\\plantvillage dataset\\color")
+
+    if os.path.exists(path):
+        print("Valid Path")
+    else:
+        print("Invalid Path")
+    
+    #This list will store full paths to every image
+    all_image_paths = []
+    #In the same order as teh above list it will store those image's label
+    all_labels = []
+
+    class_folders = os.listdir(path)
+    class_folders.sort()
+
+    # print(f"\nFound {len(class_folders)} class folders")
+    # print(f"First 3 folders: {class_folders[:3]}")
+
+    total_jpg_images = 0
+    #class folder path to store paths of folder in a sorted way
+    for class_folder in class_folders:
+        if class_folder not in class_to_idx:
+            print(f"Warning: {class_folder} not in class_to_idx.json")
+            continue
+        class_idx = class_to_idx[class_folder]
+
+        class_folder_path = os.path.join(path, class_folder)
+
+        if os.path.isdir(class_folder_path):
+            image_files = os.listdir(class_folder_path)
+        else:
+            print("Not a Directory.")
+            continue
+
+        # print(f"Processing: {class_folder} (idx={class_idx}, {len(image_files)} files)")
+
+        for image_file in image_files:
+
+            if not image_file.endswith(('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG')):
+                continue
+
+            total_jpg_images += 1
+
+            image_path = os.path.join(class_folder_path, image_file)
+
+            all_image_paths.append(image_path)
+            all_labels.append(class_idx)
+
+    # print("Total Image paths: ",len(all_image_paths))
+
+    #Splitting the Data
+
+    '''
+    Training: 80%
+    Validation: 10%
+    Testing: 10%
+
+    We'll be using stratified splitting because it uses same proportions of data from all the classes
+    while random split does'nt do this.
+
+    stratify parameter tells the function to lookl at all lables and keep the same proportions
+    '''
+    train_paths, temp_paths, train_labels, temp_labels = train_test_split(all_image_paths, all_labels, test_size=0.2, random_state=42, stratify=all_labels)
+
+    #Now split the temp_paths and temp_labels into val and test datasets
+    val_paths, test_paths, val_labels, test_labels = train_test_split(temp_paths, temp_labels,stratify=temp_labels, test_size=0.5,random_state=42)
+
+    train_transforms = transforms.Compose([
+        Resize((224,224)),
+        RandomRotation(15),
+        RandomHorizontalFlip(p=0.5),
+        ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        ToTensor(),
+        #These are ImageNet stats-the values ViT was pre-trained on
+        Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+    ])
+
+    #For evaluation we dont want the three(Random rotation, random horizontal flip, and color jitter)
+    # because we onlyneed variety and randomness for training, not for eval and testing.
+    #Also we wil use same transform for test as well
+    eval_transforms = transforms.Compose([
+        Resize((224,224)),
+        ToTensor(),
+        #These are ImageNet stats-the values ViT was pre-trained on
+        Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+    ])
+
+    '''
+    Right now we have list of image paths, lables, and transform pipelines ready.
+
+    Now we have to load images from those paths, apply transform, pair them with labels, and feed them to dataloaders.
+    '''
+
+    #Visualizing data
+    unique_labels, counts = np.unique(all_labels, return_counts=True)
+
+
+    #Store the data into the variables
+    train_data = PlantDiseaseDataset(train_paths, train_labels, train_transforms)
+    val_data = PlantDiseaseDataset(val_paths, val_labels, eval_transforms)
+    test_data = PlantDiseaseDataset(test_paths, test_labels, eval_transforms)
+
+
+    #set batch size
+    batch_size = 64
+
+    #create Dataloaders to load the data 32 at a time
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True)
+    val_dataloader = DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=6, pin_memory=True)
+    test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=6, pin_memory=True)
+
+
     #Model setup
     num_classes = len(class_folders)
 
@@ -214,7 +187,7 @@ if __name__ == "__main__":
     #Transformer already handles pre-processing
     model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224-in21k', num_labels = num_classes)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = ( "cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     # print(model)
 
@@ -228,7 +201,7 @@ if __name__ == "__main__":
     # print(f"Output logits shape: {outputs.logits.shape}")
 
     #we have to pass class weights to loss function as a tensor
-    class_weights_tensor = torch.tensor(class_weights, dtype=torch.float32).to(device)
+    class_weights_tensor = torch.tensor(class_weights).to(device)
 
     #loss function(criterion) and loss is the value during training
     criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
@@ -244,6 +217,9 @@ if __name__ == "__main__":
     #The learning rate is updated recursively
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optim, T_max=num_epochs, eta_min=1e-6 )
 
+    #scaler
+    # scaler = torch.cuda.amp.GradScaler('cuda')
+
     #Train
     def train(dataloader, model, loss_fn, optimizer):
         size = len(dataloader.dataset)
@@ -256,30 +232,30 @@ if __name__ == "__main__":
             #move to device
             images, labels = images.to(device), labels.to(device)
 
+            optimizer.zero_grad()
+            
+            # # WRAP FORWARD PASS IN AUTOCAST
+            # with torch.cuda.amp.autocast('cuda'):
             prediction = model(images)
             loss = loss_fn(prediction.logits, labels)
-            #make gradients zero before backtracking
-            optimizer.zero_grad()
-            loss.backward()
-
-            optimizer.step()
-
-            # train_loss += loss.item()
-            # train_total += len(images)
+            
+            # # USE SCALER FOR BACKWARD
+            # scaler.scale(loss).backward()
+            # scaler.step(optimizer)
+            # scaler.update()
+            
             predicted_classes = torch.argmax(prediction.logits, dim=1)
             train_correct += (predicted_classes == labels).sum().item()
             train_total += images.size(0)
             train_loss += loss.item()
 
+                # #check progress
+                # if batch % 100 == 0:
+                #     loss, current = loss.item(), (batch + 1)*len(images)
+                #     print(f"Loss: {loss:>7f} [{current:>5d}/{size:>5d}]")
 
-            # #check progress
-            # if batch % 100 == 0:
-            #     loss, current = loss.item(), (batch + 1)*len(images)
-            #     print(f"Loss: {loss:>7f} [{current:>5d}/{size:>5d}]")
-
-            if batch % 100 == 0:
+            if batch % 200 == 0:
                 loss, current = loss.item(), (batch + 1) * len(images)
-                size = len(dataloader.dataset) # Define size if not already in scope
                 print(f"Train Loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
         
@@ -288,7 +264,7 @@ if __name__ == "__main__":
 
         return avg_loss, accuracy
 
-    print(f"Current Training Device: {device.upper()}")     
+    # print(f"Current Training Device: {device.upper()}")     
 
     #val: practice data
     def validate(dataloader, model, loss_fn):
@@ -299,6 +275,7 @@ if __name__ == "__main__":
         model.eval()
 
         with torch.no_grad():
+            # with torch.cuda.amp.autocast('cuda'):
             for batch, (images, labels) in enumerate(dataloader):
                 #move to device
                 images, labels = images.to(device), labels.to(device)
@@ -310,11 +287,9 @@ if __name__ == "__main__":
                 val_correct += (predicted_classes == labels).sum().item()
                 val_total += images.size(0)
                 val_loss += loss.item()
-
             
-            avg_loss = val_loss / len(dataloader)
-            accuracy = (val_correct/ val_total)*100
-
+        avg_loss = val_loss / len(dataloader)
+        accuracy = (val_correct/ val_total)*100
         return avg_loss, accuracy
 
     def test(dataloader, model, loss_fn):
@@ -341,15 +316,33 @@ if __name__ == "__main__":
 
         return avg_loss, accuracy
 
-    #Main training loop
     for epoch in range(num_epochs):
-        print(f"Epoch: {epoch + 1}/{num_epochs}: Starting Training...")
-        train_avg_loss, train_accuracy = train(train_dataloader, model=model, optimizer=optim, loss_fn=criterion)
-        val_avg_loss, val_accuracy = validate(val_dataloader, model=model, loss_fn=criterion)
-        #Apply scheduler: Used to update the learning rate.
+        print(f"\n{'='*50}")
+        print(f"Epoch {epoch + 1}/{num_epochs}")
+        print(f"{'='*50}")
+        
+        # Training
+        train_avg_loss, train_accuracy = train(train_dataloader, model, criterion, optim)
+        
+        # Validation
+        val_avg_loss, val_accuracy = validate(val_dataloader, model, criterion)
+        
+        # Update learning rate
         lr_scheduler.step()
         
+        # Print summary
         print(f"\n--- Epoch {epoch+1} Summary ---")
-        print(f"   Train Loss: {train_avg_loss:>4f} | Train Acc: {train_accuracy:>.4f}")
-        print(f"   Val Loss: {val_accuracy:>4f} | Val Acc: {val_accuracy:>.4f}")
-        print("-" * 35)
+        print(f"   Train Loss: {train_avg_loss:.4f} | Train Acc: {train_accuracy:.2f}%")
+        print(f"   Val Loss: {val_avg_loss:.4f} | Val Acc: {val_accuracy:.2f}%")
+        
+        #save best model
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
+            torch.save(model.state_dict(), best_model_path)
+            print(f"   ✓ Best model saved! (Val Acc: {val_accuracy:.2f}%)")
+        
+        print("-" * 50)
+
+    print(f"\n Training Complete!")
+    print(f"Best Validation Accuracy: {best_val_accuracy:.2f}%")
+    print(f"Model saved to: {best_model_path}") 
