@@ -218,7 +218,7 @@ if __name__ == "__main__":
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optim, T_max=num_epochs, eta_min=1e-6 )
 
     #scaler
-    # scaler = torch.cuda.amp.GradScaler('cuda')
+    scaler = torch.cuda.amp.GradScaler()
 
     #Train
     def train(dataloader, model, loss_fn, optimizer):
@@ -235,14 +235,14 @@ if __name__ == "__main__":
             optimizer.zero_grad()
             
             # # WRAP FORWARD PASS IN AUTOCAST
-            # with torch.cuda.amp.autocast('cuda'):
-            prediction = model(images)
-            loss = loss_fn(prediction.logits, labels)
+            with torch.cuda.amp.autocast():
+                prediction = model(images)
+                loss = loss_fn(prediction.logits, labels)
             
-            # # USE SCALER FOR BACKWARD
-            # scaler.scale(loss).backward()
-            # scaler.step(optimizer)
-            # scaler.update()
+            # USE SCALER FOR BACKWARD
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             
             predicted_classes = torch.argmax(prediction.logits, dim=1)
             train_correct += (predicted_classes == labels).sum().item()
@@ -275,18 +275,18 @@ if __name__ == "__main__":
         model.eval()
 
         with torch.no_grad():
-            # with torch.cuda.amp.autocast('cuda'):
-            for batch, (images, labels) in enumerate(dataloader):
-                #move to device
-                images, labels = images.to(device), labels.to(device)
+            with torch.cuda.amp.autocast():
+                for batch, (images, labels) in enumerate(dataloader):
+                    #move to device
+                    images, labels = images.to(device), labels.to(device)
 
-                prediction = model(images)
+                    prediction = model(images)
 
-                loss = loss_fn(prediction.logits, labels)
-                predicted_classes = torch.argmax(prediction.logits, dim=1)
-                val_correct += (predicted_classes == labels).sum().item()
-                val_total += images.size(0)
-                val_loss += loss.item()
+                    loss = loss_fn(prediction.logits, labels)
+                    predicted_classes = torch.argmax(prediction.logits, dim=1)
+                    val_correct += (predicted_classes == labels).sum().item()
+                    val_total += images.size(0)
+                    val_loss += loss.item()
             
         avg_loss = val_loss / len(dataloader)
         accuracy = (val_correct/ val_total)*100
@@ -324,7 +324,7 @@ if __name__ == "__main__":
         # Training
         train_avg_loss, train_accuracy = train(train_dataloader, model, criterion, optim)
         
-        # Validation
+        # Validation     
         val_avg_loss, val_accuracy = validate(val_dataloader, model, criterion)
         
         # Update learning rate
@@ -339,10 +339,22 @@ if __name__ == "__main__":
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy
             torch.save(model.state_dict(), best_model_path)
-            print(f"   ✓ Best model saved! (Val Acc: {val_accuracy:.2f}%)")
+            print(f"Best model saved! (Val Acc: {val_accuracy:.2f}%)")
         
         print("-" * 50)
 
     print(f"\n Training Complete!")
     print(f"Best Validation Accuracy: {best_val_accuracy:.2f}%")
     print(f"Model saved to: {best_model_path}") 
+
+    #Testing
+
+    #load model with highest accuracy
+    model.load_state_dict(torch.load(best_model_path))
+    model.to(device)
+
+    test_avg_loss, test_accuracy = test(test_dataloader, model, criterion)
+
+    print(f"\n--- Test Summary ---")
+    print(f"Test Loss: {test_avg_loss:.4f} | Test Acc: {test_accuracy:.2f}%")
+    print("\nTesting Complete!")
