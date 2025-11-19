@@ -1,0 +1,43 @@
+{
+    "model_architecture": "Vision Transformer (ViT-Base)",
+    "model_checkpoint": "google/vit-base-patch16-224-in21k",
+    "dataset": {
+        "name": "PlantVillage",
+        "total_images": 54305,
+        "num_classes": 38,
+        "train_images": 43444,
+        "val_images": 5430,
+        "test_images": 5431
+    },
+    "training_config": {
+        "num_epochs": 10,
+        "batch_size": 64,
+        "learning_rate": 3e-05,
+        "optimizer": "AdamW",
+        "weight_decay": 0.01,
+        "lr_scheduler": "CosineAnnealingLR",
+        "mixed_precision": true,
+        "class_weighted_loss": true
+    },
+    "results": {
+        "best_val_accuracy": 0.0,
+        "test_accuracy": 99.77904621616645,
+        "test_loss": 0.02043778653640081,
+        "final_train_accuracy": 99.97,
+        "final_train_loss": 0.0093
+    },
+    "data_augmentation": {
+        "resize": [
+            224,
+            224
+        ],
+        "random_rotation": 15,
+        "random_horizontal_flip": 0.5,
+        "color_jitter": {
+            "brightness": 0.2,
+            "contrast": 0.2,
+            "saturation": 0.2,
+            "hue": 0.1
+        }
+    }
+}

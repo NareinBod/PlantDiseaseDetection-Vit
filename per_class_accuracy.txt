@@ -1,0 +1,42 @@
+======================================================================
+PER-CLASS ACCURACY ANALYSIS
+======================================================================
+
+Peach___healthy                               |  97.22% |   36 samples
+Tomato___Early_blight                         |  98.00% |  100 samples
+Corn_(maize)___Cercospora_leaf_spot Gray_leaf |  98.04% |   51 samples
+Tomato___Target_Spot                          |  98.58% |  141 samples
+Cherry_(including_sour)___healthy             |  98.82% |   85 samples
+Corn_(maize)___Northern_Leaf_Blight           |  98.98% |   98 samples
+Tomato___Spider_mites Two-spotted_spider_mite |  99.40% |  168 samples
+Tomato___Late_blight                          |  99.48% |  191 samples
+Soybean___healthy                             |  99.80% |  509 samples
+Tomato___Tomato_Yellow_Leaf_Curl_Virus        |  99.81% |  536 samples
+Apple___Apple_scab                            | 100.00% |   63 samples
+Apple___Black_rot                             | 100.00% |   62 samples
+Apple___Cedar_apple_rust                      | 100.00% |   27 samples
+Apple___healthy                               | 100.00% |  165 samples
+Blueberry___healthy                           | 100.00% |  150 samples
+Cherry_(including_sour)___Powdery_mildew      | 100.00% |  105 samples
+Corn_(maize)___Common_rust_                   | 100.00% |  120 samples
+Corn_(maize)___healthy                        | 100.00% |  116 samples
+Grape___Black_rot                             | 100.00% |  118 samples
+Grape___Esca_(Black_Measles)                  | 100.00% |  139 samples
+Grape___Leaf_blight_(Isariopsis_Leaf_Spot)    | 100.00% |  108 samples
+Grape___healthy                               | 100.00% |   42 samples
+Orange___Haunglongbing_(Citrus_greening)      | 100.00% |  551 samples
+Peach___Bacterial_spot                        | 100.00% |  230 samples
+Pepper,_bell___Bacterial_spot                 | 100.00% |   99 samples
+Pepper,_bell___healthy                        | 100.00% |  148 samples
+Potato___Early_blight                         | 100.00% |  100 samples
+Potato___Late_blight                          | 100.00% |  100 samples
+Potato___healthy                              | 100.00% |   15 samples
+Raspberry___healthy                           | 100.00% |   37 samples
+Squash___Powdery_mildew                       | 100.00% |  184 samples
+Strawberry___Leaf_scorch                      | 100.00% |  111 samples
+Strawberry___healthy                          | 100.00% |   45 samples
+Tomato___Bacterial_spot                       | 100.00% |  213 samples
+Tomato___Leaf_Mold                            | 100.00% |   95 samples
+Tomato___Septoria_leaf_spot                   | 100.00% |  177 samples
+Tomato___Tomato_mosaic_virus                  | 100.00% |   37 samples
+Tomato___healthy                              | 100.00% |  159 samples

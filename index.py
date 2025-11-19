@@ -7,6 +7,8 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from torchvision.transforms import ToTensor, Normalize, Resize, RandomHorizontalFlip, RandomRotation, ColorJitter
 from sklearn.model_selection import train_test_split
+from sklearn import metrics
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from PIL import Image
 from matplotlib import pyplot as plt
 import transformers
@@ -316,36 +318,36 @@ if __name__ == "__main__":
 
         return avg_loss, accuracy
 
-    for epoch in range(num_epochs):
-        print(f"\n{'='*50}")
-        print(f"Epoch {epoch + 1}/{num_epochs}")
-        print(f"{'='*50}")
+    # for epoch in range(num_epochs):
+    #     print(f"\n{'='*50}")
+    #     print(f"Epoch {epoch + 1}/{num_epochs}")
+    #     print(f"{'='*50}")
         
-        # Training
-        train_avg_loss, train_accuracy = train(train_dataloader, model, criterion, optim)
+    #     # Training
+    #     train_avg_loss, train_accuracy = train(train_dataloader, model, criterion, optim)
         
-        # Validation     
-        val_avg_loss, val_accuracy = validate(val_dataloader, model, criterion)
+    #     # Validation     
+    #     val_avg_loss, val_accuracy = validate(val_dataloader, model, criterion)
         
-        # Update learning rate
-        lr_scheduler.step()
+    #     # Update learning rate
+    #     lr_scheduler.step()
         
-        # Print summary
-        print(f"\n--- Epoch {epoch+1} Summary ---")
-        print(f"   Train Loss: {train_avg_loss:.4f} | Train Acc: {train_accuracy:.2f}%")
-        print(f"   Val Loss: {val_avg_loss:.4f} | Val Acc: {val_accuracy:.2f}%")
+    #     # Print summary
+    #     print(f"\n--- Epoch {epoch+1} Summary ---")
+    #     print(f"   Train Loss: {train_avg_loss:.4f} | Train Acc: {train_accuracy:.2f}%")
+    #     print(f"   Val Loss: {val_avg_loss:.4f} | Val Acc: {val_accuracy:.2f}%")
         
-        #save best model
-        if val_accuracy > best_val_accuracy:
-            best_val_accuracy = val_accuracy
-            torch.save(model.state_dict(), best_model_path)
-            print(f"Best model saved! (Val Acc: {val_accuracy:.2f}%)")
+    #     #save best model
+    #     if val_accuracy > best_val_accuracy:
+    #         best_val_accuracy = val_accuracy
+    #         torch.save(model.state_dict(), best_model_path)
+    #         print(f"Best model saved! (Val Acc: {val_accuracy:.2f}%)")
         
-        print("-" * 50)
+    #     print("-" * 50)
 
-    print(f"\n Training Complete!")
-    print(f"Best Validation Accuracy: {best_val_accuracy:.2f}%")
-    print(f"Model saved to: {best_model_path}") 
+    # print(f"\n Training Complete!")
+    # print(f"Best Validation Accuracy: {best_val_accuracy:.2f}%")
+    # print(f"Model saved to: {best_model_path}") 
 
     #Testing
 
@@ -355,6 +357,62 @@ if __name__ == "__main__":
 
     test_avg_loss, test_accuracy = test(test_dataloader, model, criterion)
 
-    print(f"\n--- Test Summary ---")
-    print(f"Test Loss: {test_avg_loss:.4f} | Test Acc: {test_accuracy:.2f}%")
-    print("\nTesting Complete!")
+    # print(f"\n--- Test Summary ---")
+    # print(f"Test Loss: {test_avg_loss:.4f} | Test Acc: {test_accuracy:.2f}%")
+    # print("\nTesting Complete!")
+
+    #Analysis
+    all_preds = []
+    true_labels = []
+
+    model.eval()
+    with torch.no_grad():
+        for images, labels in (test_dataloader):
+            images = images.to(device)
+            prediction = model(images)
+            predicted_classes = torch.argmax(prediction.logits, dim=1)
+            all_preds.extend(predicted_classes.cpu().numpy())
+            true_labels.extend(labels.numpy())
+
+    all_preds = np.array(all_preds)
+    true_labels = np.array(true_labels)
+
+    # print(f"First 10 predictions: {all_preds[:10]}")
+    # print(f"First 10 true labels: {true_labels[:10]}")
+
+    # print(f"Last 10 predictions: {all_preds[-10:]}")
+    # print(f"Last 10 true labels: {true_labels[-10:]}")
+
+    # Get all unique class indices that were actually present in the test data
+    unique_indices = sorted(np.unique(np.concatenate([true_labels, all_preds])))
+    
+    # Map these indices to their actual class names using idx_to_class
+    # idx_to_class keys are strings, so must convert the indices to strings.
+    class_names = [idx_to_class[str(i)] for i in unique_indices]
+    
+    # confusion matrix:  used to describe the performance of a classification model
+    confusion_matrix = metrics.confusion_matrix(true_labels, all_preds)
+    
+    # Use the full list of class names for display_labels
+    cm_display = metrics.ConfusionMatrixDisplay(
+        confusion_matrix = confusion_matrix, 
+        display_labels = class_names
+    )
+    
+    # Increase figure size for better readability of many labels
+    fig, ax = plt.subplots(figsize=(20, 20))
+    cm_display.plot(ax=ax, xticks_rotation='vertical')
+    plt.title("Confusion Matrix")
+    plt.title(f'Confusion Matrix - Plant Disease Classification', 
+              fontsize=18, pad=20, fontweight='bold')
+    plt.ylabel('True Label', fontsize=14, fontweight='bold')
+    plt.xlabel('Predicted Label', fontsize=14, fontweight='bold')
+    plt.xticks(rotation=90, ha='right', fontsize=9)
+    plt.yticks(rotation=0, fontsize=9)
+    plt.tight_layout()
+    plt.savefig('confusion_matrix.png', dpi=300, bbox_inches='tight')
+    print("✓ Confusion matrix saved to 'confusion_matrix.png'")
+    plt.show()
+    plt.close()
+
+    
