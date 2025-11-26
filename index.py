@@ -8,7 +8,7 @@ from torchvision import transforms
 from torchvision.transforms import ToTensor, Normalize, Resize, RandomHorizontalFlip, RandomRotation, ColorJitter
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, classification_report
 from PIL import Image
 from matplotlib import pyplot as plt
 import transformers
@@ -318,36 +318,36 @@ if __name__ == "__main__":
 
         return avg_loss, accuracy
 
-    # for epoch in range(num_epochs):
-    #     print(f"\n{'='*50}")
-    #     print(f"Epoch {epoch + 1}/{num_epochs}")
-    #     print(f"{'='*50}")
+    for epoch in range(num_epochs):
+        print(f"\n{'='*50}")
+        print(f"Epoch {epoch + 1}/{num_epochs}")
+        print(f"{'='*50}")
         
-    #     # Training
-    #     train_avg_loss, train_accuracy = train(train_dataloader, model, criterion, optim)
+        # Training
+        train_avg_loss, train_accuracy = train(train_dataloader, model, criterion, optim)
         
-    #     # Validation     
-    #     val_avg_loss, val_accuracy = validate(val_dataloader, model, criterion)
+        # Validation     
+        val_avg_loss, val_accuracy = validate(val_dataloader, model, criterion)
         
-    #     # Update learning rate
-    #     lr_scheduler.step()
+        # Update learning rate
+        lr_scheduler.step()
         
-    #     # Print summary
-    #     print(f"\n--- Epoch {epoch+1} Summary ---")
-    #     print(f"   Train Loss: {train_avg_loss:.4f} | Train Acc: {train_accuracy:.2f}%")
-    #     print(f"   Val Loss: {val_avg_loss:.4f} | Val Acc: {val_accuracy:.2f}%")
+        # Print summary
+        print(f"\n--- Epoch {epoch+1} Summary ---")
+        print(f"   Train Loss: {train_avg_loss:.4f} | Train Acc: {train_accuracy:.2f}%")
+        print(f"   Val Loss: {val_avg_loss:.4f} | Val Acc: {val_accuracy:.2f}%")
         
-    #     #save best model
-    #     if val_accuracy > best_val_accuracy:
-    #         best_val_accuracy = val_accuracy
-    #         torch.save(model.state_dict(), best_model_path)
-    #         print(f"Best model saved! (Val Acc: {val_accuracy:.2f}%)")
+        #save best model
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
+            torch.save(model.state_dict(), best_model_path)
+            print(f"Best model saved! (Val Acc: {val_accuracy:.2f}%)")
         
-    #     print("-" * 50)
+        print("-" * 50)
 
-    # print(f"\n Training Complete!")
-    # print(f"Best Validation Accuracy: {best_val_accuracy:.2f}%")
-    # print(f"Model saved to: {best_model_path}") 
+    print(f"\n Training Complete!")
+    print(f"Best Validation Accuracy: {best_val_accuracy:.2f}%")
+    print(f"Model saved to: {best_model_path}") 
 
     #Testing
 
@@ -357,9 +357,9 @@ if __name__ == "__main__":
 
     test_avg_loss, test_accuracy = test(test_dataloader, model, criterion)
 
-    # print(f"\n--- Test Summary ---")
-    # print(f"Test Loss: {test_avg_loss:.4f} | Test Acc: {test_accuracy:.2f}%")
-    # print("\nTesting Complete!")
+    print(f"\n--- Test Summary ---")
+    print(f"Test Loss: {test_avg_loss:.4f} | Test Acc: {test_accuracy:.2f}%")
+    print("\nTesting Complete!")
 
     #Analysis
     all_preds = []
@@ -377,11 +377,11 @@ if __name__ == "__main__":
     all_preds = np.array(all_preds)
     true_labels = np.array(true_labels)
 
-    # print(f"First 10 predictions: {all_preds[:10]}")
-    # print(f"First 10 true labels: {true_labels[:10]}")
+    print(f"First 10 predictions: {all_preds[:10]}")
+    print(f"First 10 true labels: {true_labels[:10]}")
 
-    # print(f"Last 10 predictions: {all_preds[-10:]}")
-    # print(f"Last 10 true labels: {true_labels[-10:]}")
+    print(f"Last 10 predictions: {all_preds[-10:]}")
+    print(f"Last 10 true labels: {true_labels[-10:]}")
 
     # Get all unique class indices that were actually present in the test data
     unique_indices = sorted(np.unique(np.concatenate([true_labels, all_preds])))
@@ -414,5 +414,32 @@ if __name__ == "__main__":
     print("✓ Confusion matrix saved to 'confusion_matrix.png'")
     plt.show()
     plt.close()
+
+    #classification report
+    print("Classification Report")
+
+    report = classification_report (
+        true_labels,
+        all_preds,
+        target_names=class_names,
+        digits=4,
+        zero_division=0
+    )
+
+    print("\n" + '='*80)
+    print("CLASSIFICATION REPORT (Precision, Recall, F1-Score, Support)")
+    print("="*80)
+    print(report)
+    print("="*80)
+
+    # Save the report to a file
+    report_file_path = 'classification_report.txt'
+    with open(report_file_path, 'w') as f:
+        f.write(report)
+    print(f"Classification Report saved to '{report_file_path}'")
+    
+    print("\n" + "="*60)
+    print("ALL ANALYSIS COMPLETE!")
+    print("="*60)
 
     
